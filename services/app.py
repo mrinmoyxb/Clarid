@@ -13,13 +13,14 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-UPLOAD_DIR = "uploads"
+UPLOAD_DIR = "../uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI()
 
 @app.post("/upload")
 async def upload_dataset(file: UploadFile = File(...)):
+    print("FILE Received xxx")
     dataset_id = str(uuid.uuid4())
     file_path = os.path.join(UPLOAD_DIR, f"{dataset_id}.csv")
 
@@ -29,7 +30,7 @@ async def upload_dataset(file: UploadFile = File(...)):
         f.write(contents)
 
     df = pd.read_csv(file_path)
-
+    print("FILE UPLOADED xxx")
     return {
         "dataset_id": dataset_id,
     }
@@ -76,9 +77,6 @@ async def generate_report(payload: dict):
 async def transform_dataset(payload: dict):
     dataset_id = payload.get("dataset_id")
     instruction = payload.get("instruction")
-    print("Key: 🔑", ANTHROPIC_API_KEY)
-    models = client.models.list()
-    print(models)
 
     if not dataset_id or not instruction:
         raise HTTPException(status_code=400, detail="dataset_id and instruction required")
@@ -147,16 +145,14 @@ async def transform_dataset(payload: dict):
 
     if "result" in local_scope:
         result = local_scope["result"]
+    elif "df" in local_scope:
+        output_df = local_scope["df"]
     else:
-        df = local_scope["df"]
-        result = None
+        return {"error": "No result produced by generated code"}
     
-    if "df" in local_scope:
-        df.to_csv(file_path, index=False)
+    response_data = output_df.head(50).to_dict(orient="records")
 
     return jsonable_encoder({
-        "generated_code": generated_code,
-        "row_count": int(len(df)),
-        "column_count": int(len(df.columns)),
-        "result": result
+        "rows_returned": len(output_df),
+        "preview": response_data
     })

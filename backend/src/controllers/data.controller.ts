@@ -13,7 +13,6 @@ export async function uploadFile(req: Request, res: Response){
         const formData = new FormData();
         formData.append("file", file.buffer, file.originalname);
 
-        const fileBuffer = file.buffer;
         const response = await axios.post(
             "http://localhost:8000/upload",
             formData,
@@ -21,7 +20,6 @@ export async function uploadFile(req: Request, res: Response){
                 headers: formData.getHeaders()
             }
         );
-        console.log("RESPONSE FROM PY: ", response);
         res.json(response.data);
     }catch(error){
         res.status(500).json({ error: "Processing failed" });

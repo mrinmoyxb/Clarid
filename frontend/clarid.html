@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Clarid — Data Clarity Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        #07080d;
+    --surface:   #0d0e16;
+    --surface2:  #12141f;
+    --surface3:  #181a28;
+    --border:    #1c1e2e;
+    --border2:   #252740;
+    --accent:    #5b8dff;
+    --accent2:   #00e5a0;
+    --accent-glow: rgba(91,141,255,0.15);
+    --accent2-glow: rgba(0,229,160,0.12);
+    --text:      #dde1f0;
+    --text-muted:#6b70a0;
+    --text-dim:  #2e3050;
+    --danger:    #ff5577;
+    --warn:      #ffb640;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'Bricolage Grotesque', sans-serif;
+    --r:         10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(91,141,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(91,141,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 200;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px; height: 56px;
+    background: rgba(7,8,13,0.88);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 18px; font-weight: 800; letter-spacing: -0.3px;
+  }
+
+  .logo-icon {
+    width: 28px; height: 28px; background: var(--accent);
+    border-radius: 6px; display: grid; place-items: center; font-size: 13px;
+  }
+
+  .logo em { color: var(--accent); font-style: normal; }
+
+  .header-pill {
+    font-family: var(--mono); font-size: 10px; color: var(--text-muted);
+    border: 1px solid var(--border2); padding: 3px 10px;
+    border-radius: 100px; letter-spacing: 0.05em;
+  }
+
+  /* ── LAYOUT ── */
+  .app-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    min-height: calc(100vh - 56px);
+    position: relative; z-index: 1;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    padding: 24px 16px;
+    display: flex; flex-direction: column; gap: 4px;
+    position: sticky; top: 56px;
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+
+  .sidebar-label {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 0 8px; margin: 16px 0 6px;
+  }
+
+  .sidebar-label:first-child { margin-top: 0; }
+
+  .step-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 8px;
+    transition: background 0.2s;
+  }
+
+  .step-item.active { background: var(--accent-glow); }
+
+  .step-num {
+    width: 24px; height: 24px; border-radius: 6px;
+    border: 1px solid var(--border2);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text-muted); flex-shrink: 0;
+    transition: all 0.3s;
+  }
+
+  .step-item.active .step-num {
+    background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700;
+  }
+
+  .step-item.done .step-num {
+    background: var(--accent2-glow); border-color: var(--accent2); color: var(--accent2);
+  }
+
+  .step-info { flex: 1; min-width: 0; }
+
+  .step-title {
+    font-size: 13px; font-weight: 600; color: var(--text-muted); transition: color 0.2s;
+  }
+
+  .step-item.active .step-title { color: var(--text); }
+  .step-item.done .step-title   { color: var(--text-muted); }
+
+  .step-desc {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .step-item.active .step-desc,
+  .step-item.done .step-desc { color: var(--text-muted); }
+
+  /* Dataset card */
+  .ds-card {
+    margin-top: 4px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 8px; padding: 14px; display: none;
+  }
+
+  .ds-card.show { display: block; }
+
+  .ds-card-title {
+    font-family: var(--mono); font-size: 10px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
+  }
+
+  .ds-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0; border-bottom: 1px solid var(--border);
+  }
+
+  .ds-row:last-child { border-bottom: none; }
+  .ds-key { font-family: var(--mono); font-size: 10px; color: var(--text-muted); }
+
+  .ds-val {
+    font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--accent);
+    max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* ── MAIN ── */
+  .main-content { padding: 32px; overflow-y: auto; }
+
+  /* ── PANELS ── */
+  .panel { display: none; }
+  .panel.active { display: block; animation: panelIn 0.3s ease; }
+
+  @keyframes panelIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel-title {
+    font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 4px;
+  }
+
+  .panel-sub {
+    font-family: var(--mono); font-size: 12px; color: var(--text-muted); margin-bottom: 28px;
+  }
+
+  /* ── UPLOAD ── */
+  .upload-zone {
+    border: 2px dashed var(--border2); border-radius: var(--r);
+    padding: 64px 32px; text-align: center; cursor: pointer;
+    position: relative; transition: all 0.25s; background: var(--surface);
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent); background: var(--accent-glow);
+  }
+
+  .upload-zone input {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .upload-icon {
+    width: 60px; height: 60px; margin: 0 auto 20px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 14px; display: grid; place-items: center; font-size: 26px;
+  }
+
+  .upload-zone h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .upload-zone p  { font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+
+  .file-pill {
+    display: none; margin-top: 16px;
+    align-items: center; justify-content: center; gap: 8px;
+    font-family: var(--mono); font-size: 12px; color: var(--accent2);
+  }
+
+  .file-pill.show { display: flex; }
+
+  .file-pill-inner {
+    background: var(--accent2-glow); border: 1px solid rgba(0,229,160,0.25);
+    padding: 5px 14px; border-radius: 100px;
+  }
+
+  .upload-actions { display: flex; align-items: center; gap: 14px; margin-top: 24px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 22px; border-radius: 8px;
+    font-family: var(--sans); font-size: 14px; font-weight: 600;
+    cursor: pointer; border: none; transition: all 0.2s; white-space: nowrap;
+  }
+
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; }
+  .btn-primary  { background: var(--accent); color: #fff; }
+  .btn-primary:not(:disabled):hover { background: #7aa8ff; transform: translateY(-1px); }
+  .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border2); }
+  .btn-ghost:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+  .btn-sm { padding: 7px 14px; font-size: 12px; }
+
+  /* ── LOADER ── */
+  .loader { display: none; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; color: var(--accent); }
+  .loader.show { display: flex; }
+
+  .dots { display: flex; gap: 4px; }
+  .dots span {
+    width: 5px; height: 5px; background: var(--accent); border-radius: 50%;
+    animation: dotB 1.2s infinite ease-in-out;
+  }
+  .dots span:nth-child(2) { animation-delay: 0.15s; }
+  .dots span:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes dotB {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
+    40%            { transform: scale(1);   opacity: 1; }
+  }
+
+  /* ── REPORT ── */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1px; background: var(--border); border-radius: var(--r);
+    overflow: hidden; margin-bottom: 24px;
+  }
+
+  .stat-box { background: var(--surface); padding: 20px 18px; position: relative; overflow: hidden; }
+
+  .stat-box::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+    height: 2px; background: var(--accent);
+    transform: scaleX(0); transform-origin: left; transition: transform 0.6s ease;
+  }
+
+  .stat-box.lit::after { transform: scaleX(1); }
+
+  .stat-lbl { font-family: var(--mono); font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .stat-val { font-size: 30px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+  .stat-val.ok   { color: var(--accent2); }
+  .stat-val.warn { color: var(--warn); }
+  .stat-val.bad  { color: var(--danger); }
+  .stat-hint { font-family: var(--mono); font-size: 10px; color: var(--text-muted); margin-top: 6px; }
+
+  /* Table */
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+
+  .table-card-header {
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .table-card-title { font-family: var(--mono); font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
+
+  .tscroll { overflow-x: auto; max-height: 380px; overflow-y: auto; }
+  .tscroll::-webkit-scrollbar { width: 5px; height: 5px; }
+  .tscroll::-webkit-scrollbar-track { background: var(--surface); }
+  .tscroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead tr { background: var(--surface2); position: sticky; top: 0; z-index: 2; }
+
+  th {
+    padding: 9px 16px; text-align: left;
+    font-family: var(--mono); font-size: 10px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.07em; font-weight: 400;
+    border-bottom: 1px solid var(--border2); white-space: nowrap;
+  }
+
+  td {
+    padding: 10px 16px; font-family: var(--mono); font-size: 12px;
+    color: var(--text); border-bottom: 1px solid var(--border);
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--surface2); }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-family: var(--mono); }
+  .b-int, .b-float { background: rgba(91,141,255,0.12); color: #8ab0ff; }
+  .b-obj  { background: rgba(0,229,160,0.1); color: var(--accent2); }
+  .b-date { background: rgba(255,182,64,0.12); color: var(--warn); }
+  .b-bool { background: rgba(255,85,119,0.1); color: var(--danger); }
+
+  .bar-cell { display: flex; align-items: center; gap: 10px; }
+  .bar-bg   { flex:1; height: 4px; background: var(--border2); border-radius: 2px; min-width: 60px; overflow: hidden; }
+  .bar-fg   { height: 100%; border-radius: 2px; background: var(--accent2); transition: width 0.7s ease; }
+  .bar-fg.warn { background: var(--warn); }
+  .bar-fg.bad  { background: var(--danger); }
+
+  /* ── TRANSFORM ── */
+  .transform-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;
+  }
+
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 16px; }
+  .box:last-child { margin-bottom: 0; }
+
+  .box-header {
+    padding: 11px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface2);
+  }
+
+  .box-title { font-family: var(--mono); font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
+  .box-body  { padding: 16px; }
+
+  .prompt-ta {
+    width: 100%; height: 100px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 8px; padding: 13px 14px; color: var(--text);
+    font-family: var(--sans); font-size: 14px; resize: none; outline: none;
+    line-height: 1.5; transition: border-color 0.2s;
+  }
+
+  .prompt-ta:focus { border-color: var(--accent); }
+  .prompt-ta::placeholder { color: var(--text-dim); }
+
+  .prompt-hint { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-top: 6px; }
+
+  .run-row { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .chip {
+    font-family: var(--mono); font-size: 11px; padding: 5px 11px;
+    border: 1px solid var(--border2); border-radius: 100px;
+    color: var(--text-muted); background: transparent; cursor: pointer; transition: all 0.15s;
+  }
+
+  .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+  .code-pre {
+    font-family: var(--mono); font-size: 12px; color: #9ab8ff;
+    line-height: 1.7; white-space: pre-wrap; word-break: break-all;
+    padding: 14px 16px; min-height: 60px;
+  }
+
+  .exec-badge {
+    font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 4px;
+  }
+
+  .exec-ok  { background: var(--accent2-glow); color: var(--accent2); border: 1px solid rgba(0,229,160,0.2); }
+  .exec-err { background: rgba(255,85,119,0.1); color: var(--danger); border: 1px solid rgba(255,85,119,0.2); }
+
+  .preview-empty {
+    padding: 48px 24px; text-align: center;
+    color: var(--text-dim); font-family: var(--mono); font-size: 12px;
+  }
+
+  .pscroll { overflow-x: auto; max-height: 400px; overflow-y: auto; }
+  .pscroll::-webkit-scrollbar { width: 5px; height: 5px; }
+  .pscroll::-webkit-scrollbar-track { background: var(--surface); }
+  .pscroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .null-cell { color: var(--danger); opacity: 0.5; font-style: italic; }
+
+  /* ── TOAST ── */
+  #toasts {
+    position: fixed; bottom: 20px; right: 20px;
+    display: flex; flex-direction: column; gap: 8px; z-index: 999; pointer-events: none;
+  }
+
+  .t {
+    padding: 10px 16px; border-radius: 8px;
+    font-family: var(--mono); font-size: 12px; border: 1px solid;
+    pointer-events: all; animation: tIn 0.25s ease; max-width: 320px;
+  }
+
+  .t-ok  { background: rgba(0,229,160,0.08); border-color: rgba(0,229,160,0.25); color: var(--accent2); }
+  .t-err { background: rgba(255,85,119,0.08); border-color: rgba(255,85,119,0.25); color: var(--danger); }
+
+  @keyframes tIn {
+    from { opacity: 0; transform: translateX(16px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  @media (max-width: 900px) {
+    .app-layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .transform-grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">✦</div>
+    Clar<em>id</em>
+  </div>
+  <span class="header-pill">MVP · v0.1</span>
+</header>
+
+<div class="app-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-label">Workflow</div>
+
+    <div class="step-item active" id="step-1">
+      <div class="step-num">1</div>
+      <div class="step-info">
+        <div class="step-title">Upload Dataset</div>
+        <div class="step-desc">CSV file, any size</div>
+      </div>
+    </div>
+
+    <div class="step-item" id="step-2">
+      <div class="step-num">2</div>
+      <div class="step-info">
+        <div class="step-title">Data Report</div>
+        <div class="step-desc">Quality analysis</div>
+      </div>
+    </div>
+
+    <div class="step-item" id="step-3">
+      <div class="step-num">3</div>
+      <div class="step-info">
+        <div class="step-title">Transform</div>
+        <div class="step-desc">Natural language ops</div>
+      </div>
+    </div>
+
+    <div id="ds-label" class="sidebar-label" style="display:none">Dataset</div>
+    <div class="ds-card" id="ds-card">
+      <div class="ds-card-title">Current File</div>
+      <div class="ds-row">
+        <span class="ds-key">file</span>
+        <span class="ds-val" id="ds-name" style="color:var(--text-muted);font-size:10px">—</span>
+      </div>
+      <div class="ds-row">
+        <span class="ds-key">rows</span>
+        <span class="ds-val" id="ds-rows">—</span>
+      </div>
+      <div class="ds-row">
+        <span class="ds-key">columns</span>
+        <span class="ds-val" id="ds-cols">—</span>
+      </div>
+      <div class="ds-row">
+        <span class="ds-key">missing</span>
+        <span class="ds-val" id="ds-missing" style="color:var(--warn)">—</span>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-content">
+
+    <!-- PANEL 1: UPLOAD -->
+    <div class="panel active" id="panel-upload">
+      <div class="panel-title">Upload your dataset</div>
+      <div class="panel-sub">Drop a CSV file to begin. We'll scan it and generate a quality report before you can transform it.</div>
+
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="file-input" accept=".csv" />
+        <div class="upload-icon">📂</div>
+        <h2>Drop CSV here</h2>
+        <p>or click to browse · .csv files only</p>
+        <div class="file-pill" id="file-pill">
+          <span class="file-pill-inner" id="file-pill-text"></span>
+        </div>
+      </div>
+
+      <div class="upload-actions">
+        <button class="btn btn-primary" id="upload-btn" disabled>Upload &amp; Analyze</button>
+        <div class="loader" id="upload-loader">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <span id="loader-text">uploading...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 2: REPORT -->
+    <div class="panel" id="panel-report">
+      <div class="panel-title">Data Report</div>
+      <div class="panel-sub">Automated quality analysis of your dataset.</div>
+
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-lbl">Rows</div>
+          <div class="stat-val ok" id="sv-rows">—</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-lbl">Columns</div>
+          <div class="stat-val ok" id="sv-cols">—</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-lbl">Missing Values</div>
+          <div class="stat-val" id="sv-missing">—</div>
+          <div class="stat-hint" id="sh-missing"></div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-lbl">Duplicates</div>
+          <div class="stat-val" id="sv-dupes">—</div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-card-header">
+          <span class="table-card-title">Column Analysis</span>
+          <button class="btn btn-ghost btn-sm" id="go-transform">
+            Continue to Transform →
+          </button>
+        </div>
+        <div class="tscroll">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Column</th>
+                <th>Type</th>
+                <th>Missing</th>
+                <th>Whitespace</th>
+              </tr>
+            </thead>
+            <tbody id="col-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 3: TRANSFORM -->
+    <div class="panel" id="panel-transform">
+      <div class="panel-title">Transform Dataset</div>
+      <div class="panel-sub">Type a natural language instruction. Clarid generates and executes the code instantly.</div>
+
+      <div class="transform-grid">
+
+        <!-- LEFT -->
+        <div>
+          <div class="box">
+            <div class="box-header">
+              <span class="box-title">Instruction</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim)">Ctrl+Enter to run</span>
+            </div>
+            <div class="box-body">
+              <textarea class="prompt-ta" id="prompt-ta" placeholder="e.g. Remove rows where age is below 18..."></textarea>
+              <div class="prompt-hint">Powered by Claude · sandboxed Python execution</div>
+              <div class="run-row">
+                <button class="btn btn-primary" id="run-btn">▶ Run</button>
+                <div class="loader" id="run-loader">
+                  <div class="dots"><span></span><span></span><span></span></div>
+                  generating code...
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="box">
+            <div class="box-header"><span class="box-title">Quick Actions</span></div>
+            <div class="box-body">
+              <div class="chips">
+                <button class="chip" onclick="setPrompt('Drop all rows with missing values')">Drop missing rows</button>
+                <button class="chip" onclick="setPrompt('Remove duplicate rows')">Remove duplicates</button>
+                <button class="chip" onclick="setPrompt('Fill missing numerical values with median')">Fill nulls w/ median</button>
+                <button class="chip" onclick="setPrompt('Strip leading and trailing whitespace from all string columns')">Strip whitespace</button>
+                <button class="chip" onclick="setPrompt('Convert all column names to lowercase and replace spaces with underscores')">Normalize cols</button>
+                <button class="chip" onclick="setPrompt('Drop columns where more than 50% of values are missing')">Drop sparse cols</button>
+                <button class="chip" onclick="setPrompt('Remove rows where any numerical value is beyond 3 standard deviations')">Remove outliers</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Code output — hidden until first run -->
+          <div class="box" id="code-box" style="display:none">
+            <div class="box-header">
+              <span class="box-title">Generated Python</span>
+              <span class="exec-badge exec-ok" id="exec-badge">executed ✓</span>
+            </div>
+            <pre class="code-pre" id="code-pre"></pre>
+          </div>
+        </div>
+
+        <!-- RIGHT: preview -->
+        <div>
+          <div class="box">
+            <div class="box-header">
+              <span class="box-title">Data Preview</span>
+              <span id="preview-meta" style="font-family:var(--mono);font-size:10px;color:var(--text-muted)"></span>
+            </div>
+            <div id="preview-empty" class="preview-empty">
+              Run a transformation to see results here
+            </div>
+            <div class="pscroll" id="pscroll" style="display:none">
+              <table>
+                <thead id="prev-head"></thead>
+                <tbody id="prev-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────────
+// Update port to match your Express server
+const API = 'http://localhost:9001/api/v1';
+
+// ── STATE ──────────────────────────────────────────────────
+const S = { file: null, datasetId: null };
+
+// ── UTILS ──────────────────────────────────────────────────
+function toast(msg, type = 'ok') {
+  const el = document.createElement('div');
+  el.className = `t t-${type}`;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function fmtBytes(b) {
+  if (b < 1024) return `${b} B`;
+  if (b < 1048576) return `${(b/1024).toFixed(1)} KB`;
+  return `${(b/1048576).toFixed(1)} MB`;
+}
+
+function loader(id, on) { document.getElementById(id).classList.toggle('show', on); }
+
+function setStep(n) {
+  [1,2,3].forEach(i => {
+    const el = document.getElementById(`step-${i}`);
+    el.classList.remove('active','done');
+    if (i < n) el.classList.add('done');
+    if (i === n) el.classList.add('active');
+  });
+}
+
+function showPanel(id) {
+  // Guard: once a dataset is loaded, NEVER allow regression back to upload panel
+  // This is the nuclear fix for any stale event/reload causing a panel reset
+  if (id === 'panel-upload' && S.datasetId) return;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function animCount(id, target) {
+  const el = document.getElementById(id);
+  const dur = 700, t0 = performance.now();
+  (function tick(now) {
+    const p = Math.min((now - t0) / dur, 1);
+    el.textContent = Math.round(target * (1 - Math.pow(1-p, 3))).toLocaleString();
+    if (p < 1) requestAnimationFrame(tick);
+  })(performance.now());
+}
+
+// ── FILE PICK ──────────────────────────────────────────────
+const zone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  f?.name.endsWith('.csv') ? pickFile(f) : toast('Please drop a .csv file', 'err');
+});
+
+// Use { once: true } so the listener fires once and self-removes,
+// preventing any stale re-trigger after the panel switches
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) pickFile(e.target.files[0]);
+});
+
+function pickFile(f) {
+  S.file = f;
+  document.getElementById('file-pill-text').textContent = `📄 ${f.name}  ·  ${fmtBytes(f.size)}`;
+  document.getElementById('file-pill').classList.add('show');
+  document.getElementById('upload-btn').disabled = false;
+}
+
+// ── UPLOAD → REPORT ────────────────────────────────────────
+document.getElementById('upload-btn').addEventListener('click', async (e) => {
+  e.stopPropagation(); // prevent bubbling into upload-zone which would re-open file picker
+  if (!S.file) return;
+
+  // Fully lock the upload zone — disable input so browser can't replay file selection
+  fileInput.disabled = true;
+  document.getElementById('upload-zone').style.pointerEvents = 'none';
+
+  document.getElementById('upload-btn').disabled = true;
+  loader('upload-loader', true);
+
+  try {
+    // 1. Upload file
+    // field name 'file' matches multer upload.single('file') in data.route.ts
+    // Do NOT set Content-Type manually — browser sets multipart boundary automatically
+    document.getElementById('loader-text').textContent = 'uploading...';
+    const fd = new FormData();
+    fd.append('file', S.file, S.file.name);
+
+    const upRes  = await fetch(`${API}/upload`, { method: 'POST', body: fd });
+    const upData = await upRes.json();
+    if (!upRes.ok || upData.error) throw new Error(upData.error || 'Upload failed');
+
+    S.datasetId = upData.dataset_id;
+    toast(`Uploaded · ${S.file.name}`);
+
+    // 2. Generate report — body: { dataset_id }
+    // matches: const { dataset_id } = req.body in generateReport controller
+    document.getElementById('loader-text').textContent = 'generating report...';
+
+    const rpRes  = await fetch(`${API}/report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataset_id: S.datasetId })
+    });
+    const rp = await rpRes.json();
+    if (!rpRes.ok || rp.error) throw new Error(rp.error || 'Report failed');
+
+    const uploadedFileName = S.file.name;
+
+    renderReport(rp);
+
+    // Sidebar dataset card
+    const ov = rp.dataset_overview;
+    const totalMissing = Object.values(rp.missing_values).reduce((a,b)=>a+b, 0);
+
+    document.getElementById('ds-label').style.display = '';
+    document.getElementById('ds-card').classList.add('show');
+    document.getElementById('ds-name').textContent    = uploadedFileName;
+    document.getElementById('ds-rows').textContent    = ov.row_count.toLocaleString();
+    document.getElementById('ds-cols').textContent    = ov.column_count;
+    document.getElementById('ds-missing').textContent = totalMissing;
+
+    // Do NOT clear fileInput.value here — it triggers a 'change' event in Chrome/Firefox
+    // which can re-fire pickFile and corrupt state. Just null the reference.
+    S.file = null;
+
+    setStep(2);
+    showPanel('panel-report');
+    toast('Report ready');
+
+  } catch(err) {
+    toast(err.message, 'err');
+    // Restore upload zone so user can retry
+    fileInput.disabled = false;
+    document.getElementById('upload-zone').style.pointerEvents = '';
+    document.getElementById('upload-btn').disabled = false;
+    // Note: attachFileListener was removed — the existing change listener handles retry
+  } finally {
+    loader('upload-loader', false);
+  }
+});
+
+// ── RENDER REPORT ──────────────────────────────────────────
+function renderReport(rp) {
+  const ov   = rp.dataset_overview;
+  const rows = ov.row_count;
+  const totalMissing = Object.values(rp.missing_values).reduce((a,b)=>a+b, 0);
+
+  animCount('sv-rows', rows);
+  animCount('sv-cols', ov.column_count);
+  animCount('sv-missing', totalMissing);
+  animCount('sv-dupes', rp.duplicate_rows);
+
+  const mv = document.getElementById('sv-missing');
+  mv.className = 'stat-val ' + (totalMissing === 0 ? 'ok' : totalMissing > 200 ? 'bad' : 'warn');
+  document.getElementById('sh-missing').textContent = `across ${ov.column_count} columns`;
+
+  const dv = document.getElementById('sv-dupes');
+  dv.className = 'stat-val ' + (rp.duplicate_rows === 0 ? 'ok' : 'warn');
+
+  setTimeout(() => document.querySelectorAll('.stat-box').forEach(b => b.classList.add('lit')), 200);
+
+  const tbody = document.getElementById('col-tbody');
+  tbody.innerHTML = '';
+
+  ov.column_names.forEach((col, i) => {
+    const dtype   = ov.column_names_dtype[col] || 'object';
+    const missing = rp.missing_values[col] || 0;
+    const pct     = rows > 0 ? (missing / rows) * 100 : 0;
+    const ws      = rp.whitespace_issues[col] || 0;
+
+    const bc = dtype.includes('int') ? 'b-int'
+      : dtype.includes('float')  ? 'b-float'
+      : dtype.includes('date')   ? 'b-date'
+      : dtype.includes('bool')   ? 'b-bool'
+      : 'b-obj';
+
+    const barC = pct > 50 ? 'bad' : pct > 20 ? 'warn' : '';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--text-dim)">${i+1}</td>
+      <td style="font-weight:600">${col}</td>
+      <td><span class="badge ${bc}">${dtype}</span></td>
+      <td>
+        <div class="bar-cell">
+          <div class="bar-bg"><div class="bar-fg ${barC}" style="width:${pct.toFixed(1)}%"></div></div>
+          <span style="color:${missing>0?'var(--warn)':'var(--text-muted)'}">
+            ${missing} <span style="opacity:0.5">${pct.toFixed(0)}%</span>
+          </span>
+        </div>
+      </td>
+      <td style="color:${ws>0?'var(--warn)':'var(--text-dim)'}">
+        ${ws > 0 ? `⚠ ${ws} cells` : '—'}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── GO TO TRANSFORM ────────────────────────────────────────
+// Only reachable after upload + report — dataset_id guaranteed to exist here
+document.getElementById('go-transform').addEventListener('click', () => {
+  setStep(3);
+  showPanel('panel-transform');
+  document.getElementById('prompt-ta').focus();
+});
+
+// ── TRANSFORM ──────────────────────────────────────────────
+document.getElementById('run-btn').addEventListener('click', runTransform);
+document.getElementById('prompt-ta').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runTransform();
+});
+
+function setPrompt(text) {
+  document.getElementById('prompt-ta').value = text;
+  document.getElementById('prompt-ta').focus();
+}
+
+async function runTransform() {
+  const instruction = document.getElementById('prompt-ta').value.trim();
+  if (!instruction) { toast('Enter an instruction first', 'err'); return; }
+  if (!S.datasetId) { toast('No dataset loaded', 'err');          return; }
+
+  document.getElementById('run-btn').disabled = true;
+  loader('run-loader', true);
+  document.getElementById('code-box').style.display = 'none';
+
+  try {
+    // Matches: const { dataset_id, instruction } = req.body in transformDataset controller
+    const res  = await fetch(`${API}/transform`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataset_id: S.datasetId, instruction })
+    });
+
+    const data = await res.json();
+    document.getElementById('code-box').style.display = '';
+
+    if (!res.ok || data.error) {
+      // Two error shapes:
+      // Express catch → { error: "Transformation failed" }
+      // Python exec fail → { error, details, generated_code }
+      document.getElementById('code-pre').textContent =
+        data.generated_code
+          ? `# ✗ Execution error\n# ${data.details || data.error}\n\n${data.generated_code}`
+          : `# ✗ ${data.error}`;
+
+      const b = document.getElementById('exec-badge');
+      b.textContent = 'failed ✗';
+      b.className = 'exec-badge exec-err';
+      toast(data.error || 'Transform failed', 'err');
+      return;
+    }
+
+    // Success
+    document.getElementById('code-pre').textContent = `# ✓ Executed successfully\n# "${instruction}"`;
+    const b = document.getElementById('exec-badge');
+    b.textContent = 'executed ✓';
+    b.className = 'exec-badge exec-ok';
+
+    renderPreview(data.preview, data.rows_returned);
+    toast(`Done · ${data.rows_returned.toLocaleString()} rows`);
+
+  } catch(err) {
+    toast(err.message, 'err');
+  } finally {
+    document.getElementById('run-btn').disabled = false;
+    loader('run-loader', false);
+  }
+}
+
+// ── RENDER PREVIEW ─────────────────────────────────────────
+function renderPreview(rows, total) {
+  if (!rows?.length) return;
+
+  const headers = Object.keys(rows[0]);
+  document.getElementById('preview-meta').textContent = `showing ${rows.length} of ${total.toLocaleString()} rows`;
+  document.getElementById('prev-head').innerHTML = `<tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>`;
+  document.getElementById('prev-body').innerHTML = rows.map(row =>
+    `<tr>${headers.map(h => {
+      const v = row[h];
+      const empty = v === null || v === undefined || v === '';
+      return `<td class="${empty?'null-cell':''}">${empty ? 'null' : v}</td>`;
+    }).join('')}</tr>`
+  ).join('');
+
+  document.getElementById('preview-empty').style.display = 'none';
+  document.getElementById('pscroll').style.display = '';
+}
+</script>
+</body>
+</html>
